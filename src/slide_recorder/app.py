@@ -242,11 +242,6 @@ class MainWindow(QMainWindow):
         self.play_button.clicked.connect(self._play_current_slide)
         layout.addWidget(self.play_button)
 
-        self.stop_button = QPushButton("Stop")
-        self.stop_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
-        self.stop_button.clicked.connect(self._stop_playback)
-        layout.addWidget(self.stop_button)
-
         self.duration_label = QLabel("Duration: 00:00.00")
         layout.addWidget(self.duration_label)
         layout.addStretch(1)
@@ -506,7 +501,10 @@ class MainWindow(QMainWindow):
         self._update_button_states()
 
     def _play_current_slide(self) -> None:
-        if self._recording or self.audio.is_playing:
+        if self.audio.is_playing:
+            self._stop_playback()
+            return
+        if self._recording:
             return
         slide = self.current_slide
         if not slide.has_audio:
@@ -522,10 +520,14 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Playing {slide.title}")
         else:
             self.waveform.set_playhead(None)
+        self._sync_play_button_label()
         self._update_button_states()
 
     def _play_selection(self) -> None:
-        if self._recording or self.audio.is_playing or not self.waveform.has_selection():
+        if self.audio.is_playing:
+            self._stop_playback()
+            return
+        if self._recording or not self.waveform.has_selection():
             return
         start, end = self.waveform.selection()
         samples = self.current_slide.samples[start:end]
@@ -538,6 +540,7 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage("Playing selection")
             else:
                 self.waveform.set_playhead(None)
+        self._sync_play_button_label()
         self._update_button_states()
 
     def _stop_playback(self, show_status: bool = True) -> None:
@@ -550,6 +553,7 @@ class MainWindow(QMainWindow):
             )
         if show_status:
             self.statusBar().showMessage("Playback stopped.")
+        self._sync_play_button_label()
         self._update_button_states()
 
     def _trim_to_selection(self) -> None:
@@ -849,11 +853,11 @@ class MainWindow(QMainWindow):
         is_playing = self.audio.is_playing
 
         self._sync_record_button_label()
+        self._sync_play_button_label()
         self._update_undo_action()
 
         self.record_button.setEnabled(not is_playing or self._recording)
-        self.play_button.setEnabled(slide_has_audio and not self._recording and not is_playing)
-        self.stop_button.setEnabled(is_playing and not self._recording)
+        self.play_button.setEnabled(not self._recording and (slide_has_audio or is_playing))
         self.add_slide_button.setEnabled(not self._recording)
         has_selected_slides = bool(self._selected_slide_ids())
         self.remove_slide_button.setEnabled(not self._recording and has_selected_slides and len(self.store.slides) > 1)
@@ -896,7 +900,6 @@ class MainWindow(QMainWindow):
             playhead = self._playback_origin_sample + int(round(elapsed * self.store.sample_rate))
             self.waveform.set_playhead(playhead)
             self.duration_label.setText(f"Playback: {format_seconds(elapsed)} / {format_seconds(total)}")
-            self.stop_button.setEnabled(True)
         elif self._playback_active:
             self._playback_active = False
             self.waveform.set_playhead(None)
@@ -904,8 +907,6 @@ class MainWindow(QMainWindow):
                 f"Duration: {format_duration(self.current_slide.samples, self.store.sample_rate)}"
             )
             self._update_button_states()
-        elif not self.audio.is_playing:
-            self.stop_button.setEnabled(False)
 
         status = self.audio.last_status
         if status and self._mic_ready:
@@ -954,6 +955,16 @@ class MainWindow(QMainWindow):
             return
         self.record_button.setText("Record New Clip" if self.current_slide.has_audio else "Record")
         self.record_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
+    def _sync_play_button_label(self) -> None:
+        if not hasattr(self, "play_button"):
+            return
+        if self.audio.is_playing:
+            self.play_button.setText("Stop Playback")
+            self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
+            return
+        self.play_button.setText("Play")
+        self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
 
     def _open_session_folder(self) -> None:
         if self._recording:

@@ -26,11 +26,13 @@ to wake up.
   recording to the window, and returning to the default timeline scale.
 - Playback progress is shown in the time label and as a red playhead on the
   waveform.
+- Transport uses two toggles: `Record` becomes `Stop Recording` while capturing,
+  and `Play` becomes `Stop Playback` while playing.
 - Right-click waveform actions for playing, trimming, cutting, clearing, or
   deleting audio or the selected clip.
 - Keyboard editing on the focused waveform: Delete/Backspace cuts the selected
   range, Delete/Backspace deletes a selected clip when no range is selected,
-  Enter trims to the range, Space plays, and Escape clears.
+  Enter trims to the range, Space toggles playback, and Escape clears.
 - Undo audio edits with Ctrl+Z or `Edit > Undo`.
 - Optional confirmation before deleting audio.
 - Add, remove, and rename slides. Use Ctrl-click or Shift-click to select
@@ -95,6 +97,7 @@ The packaged app will be written under `dist/`.
 1. Pick a slide from the list.
 2. Put the cursor where the next take should begin.
 3. Click `Record New Clip` to capture a separate recording portion.
+   The same button changes to `Stop Recording` while recording.
 4. Drag across the waveform timeline to select a region.
 5. Drag either edge of the selection to adjust it, or drag inside the selected
    range to move it.
@@ -112,7 +115,9 @@ The packaged app will be written under `dist/`.
    fully hidden behind another clip.
 10. Select a clip header and press Delete/Backspace to remove only that clip.
 11. Use Ctrl+Z to undo the last audio edit for the current slide.
-12. Export current slide or export all recorded slides.
+12. Click `Play` to preview from the cursor; while playing, click the same
+    button again to stop playback.
+13. Export current slide or export all recorded slides.
 
 ## Overlap Priority
 
