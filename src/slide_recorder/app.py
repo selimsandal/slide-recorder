@@ -501,7 +501,7 @@ class MainWindow(QMainWindow):
         self._update_button_states()
 
     def _play_current_slide(self) -> None:
-        if self.audio.is_playing:
+        if self._playback_active or self.audio.is_playing:
             self._stop_playback()
             return
         if self._recording:
@@ -524,7 +524,7 @@ class MainWindow(QMainWindow):
         self._update_button_states()
 
     def _play_selection(self) -> None:
-        if self.audio.is_playing:
+        if self._playback_active or self.audio.is_playing:
             self._stop_playback()
             return
         if self._recording or not self.waveform.has_selection():
@@ -850,7 +850,7 @@ class MainWindow(QMainWindow):
 
     def _update_button_states(self) -> None:
         slide_has_audio = self.current_slide.has_audio
-        is_playing = self.audio.is_playing
+        is_playing = self._playback_active or self.audio.is_playing
 
         self._sync_record_button_label()
         self._sync_play_button_label()
@@ -959,7 +959,7 @@ class MainWindow(QMainWindow):
     def _sync_play_button_label(self) -> None:
         if not hasattr(self, "play_button"):
             return
-        if self.audio.is_playing:
+        if self._playback_active or self.audio.is_playing:
             self.play_button.setText("Stop Playback")
             self.play_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaStop))
             return

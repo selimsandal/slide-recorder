@@ -131,7 +131,7 @@ class AudioEngine(QObject):
         self._playback_bytes = self._float_to_bytes(playable, output_format)
         self._playback_offset = 0
         self._playback_sink = QAudioSink(output_device, output_format, self)
-        self._playback_sink.setBufferSize(min(max(len(self._playback_bytes), 4096), 1_048_576))
+        self._playback_sink.setBufferSize(self._playback_buffer_size(output_format))
         self._playback_io = self._playback_sink.start()
         self._playback_started_at = time.monotonic()
         self._playback_duration = float(playable.size) / float(output_format.sampleRate())
@@ -141,6 +141,7 @@ class AudioEngine(QObject):
     def stop_playback(self) -> None:
         self._playback_timer.stop()
         sink = self._playback_sink
+        playback_io = self._playback_io
         self._playback_sink = None
         self._playback_io = None
         self._playback_bytes = b""
@@ -148,6 +149,9 @@ class AudioEngine(QObject):
         self._playback_started_at = 0.0
         self._playback_duration = 0.0
         if sink is not None:
+            if playback_io is not None:
+                playback_io.close()
+            sink.reset()
             sink.stop()
             sink.deleteLater()
 
@@ -292,6 +296,11 @@ class AudioEngine(QObject):
         audio_format.setChannelCount(channels)
         audio_format.setSampleFormat(QAudioFormat.SampleFormat.Int16)
         return audio_format
+
+    @staticmethod
+    def _playback_buffer_size(audio_format: QAudioFormat) -> int:
+        bytes_per_second = max(1, audio_format.bytesPerFrame() * audio_format.sampleRate())
+        return max(4096, bytes_per_second // 12)
 
     @staticmethod
     def _bytes_to_float(data: bytes, audio_format: QAudioFormat) -> np.ndarray:
