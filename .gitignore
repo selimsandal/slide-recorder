@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Packaging output
+build/
+dist/
+
+# Local slide-recorder sessions and exports
+session.json
+recordings/
+*.wav
+*.zip
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
