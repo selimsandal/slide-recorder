@@ -19,6 +19,7 @@ dist/
 session.json
 recordings/
 *.wav
+*.mp4
 *.zip
 
 # OS/editor noise

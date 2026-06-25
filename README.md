@@ -38,6 +38,9 @@ to wake up.
 - Add, remove, and rename slides. Use Ctrl-click or Shift-click to select
   multiple slides for batch removal.
 - Export one slide as WAV or all recorded slides as a ZIP.
+- Export an MP4 slide video from a PDF whose page count matches the session
+  slide count. Each PDF page is held for that slide's recorded audio duration,
+  with H.264, H.265, and AV1 codec choices.
 - Runs on Windows, macOS, and Linux with Python and PySide6 QtMultimedia.
 
 ## Run From Source With uv
@@ -68,7 +71,8 @@ The default session folder is `Documents/Slide Recorder`. It contains
 takes.
 
 If you choose the repository itself as a session folder while testing, the local
-`session.json`, `recordings/`, WAV exports, and ZIP exports are ignored by git.
+`session.json`, `recordings/`, WAV exports, MP4 exports, and ZIP exports are
+ignored by git.
 
 ## Package
 
@@ -117,7 +121,7 @@ The packaged app will be written under `dist/`.
 11. Use Ctrl+Z to undo the last audio edit for the current slide.
 12. Click `Play` to preview from the cursor; while playing, click the same
     button again to stop playback.
-13. Export current slide or export all recorded slides.
+13. Export current slide audio, all slide audio, or a PDF-backed slide video.
 
 ## Overlap Priority
 
@@ -136,3 +140,24 @@ waveform context menu:
 For an already selected clip, use `Bring Selected Clip to Front` or
 `Send Selected Clip to Back` from the same context menu. These priority changes
 are undoable with Ctrl+Z.
+
+## PDF Video Export
+
+Use `File > Export Slide Video from PDF...` to create an MP4 from a PDF and the
+current slide recordings.
+
+The PDF must have exactly the same number of pages as the session has slides.
+Page 1 is paired with slide 1, page 2 with slide 2, and so on. For each slide,
+the exporter renders the PDF page as a still frame and uses the mixed slide
+audio as the segment audio. A 10-second slide 1 recording produces 10 seconds of
+PDF page 1 in the output video, then the export continues with page 2 and slide
+2 audio.
+
+Slides without recordings can be included as one-second silent stills. Video is
+encoded as 1920x1080 MP4 using the bundled `imageio-ffmpeg` executable, so users
+do not need to install ffmpeg separately when running from source.
+
+The exporter offers H.264/AVC, H.265/HEVC, and AV1 when the bundled ffmpeg build
+supports them. It tries hardware encoders first when available, such as
+VideoToolbox, NVENC, AMF, or QSV, then falls back to software encoding for the
+same codec if hardware encoding is not available at runtime.

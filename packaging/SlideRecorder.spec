@@ -2,14 +2,16 @@
 
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
 project_root = Path(SPECPATH).parent.parent
 
 a = Analysis(
     [str(project_root / "packaging" / "pyinstaller_entry.py")],
     pathex=[str(project_root / "src")],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    binaries=collect_dynamic_libs("pymupdf"),
+    datas=collect_data_files("imageio_ffmpeg"),
+    hiddenimports=["imageio_ffmpeg", "pymupdf"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

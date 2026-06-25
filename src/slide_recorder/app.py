@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
+    QProgressDialog,
     QScrollBar,
     QSplitter,
     QStatusBar,
@@ -44,6 +46,7 @@ from .storage import (
     safe_file_stem,
 )
 from .waveform import WaveformWidget
+from .video import VideoExportError, available_video_codecs, export_pdf_slide_video, pdf_page_count
 
 
 RECORDING_PREVIEW_CLIP_ID = -1
@@ -118,6 +121,9 @@ class MainWindow(QMainWindow):
         export_all = QAction("Export All Slides...", self)
         export_all.triggered.connect(self._export_all_slides)
 
+        export_video = QAction("Export Slide Video from PDF...", self)
+        export_video.triggered.connect(self._export_slide_video_from_pdf)
+
         self.undo_action = QAction("Undo", self)
         self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
         self.undo_action.triggered.connect(self._undo_current_slide)
@@ -133,6 +139,7 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction(export_current)
         file_menu.addAction(export_all)
+        file_menu.addAction(export_video)
         file_menu.addSeparator()
         file_menu.addAction(quit_action)
 
@@ -1015,6 +1022,125 @@ class MainWindow(QMainWindow):
         count = self.store.export_all_zip(Path(destination))
         QMessageBox.information(self, "Export complete", f"Exported {count} recorded slide audio files.")
         self.statusBar().showMessage(f"Exported {destination}")
+
+    def _export_slide_video_from_pdf(self) -> None:
+        if self._recording:
+            return
+        self._stop_playback(show_status=False)
+
+        pdf_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Matching Slide PDF",
+            str(self.store.directory),
+            "PDF documents (*.pdf)",
+        )
+        if not pdf_name:
+            return
+
+        pdf_path = Path(pdf_name)
+        try:
+            page_count = pdf_page_count(pdf_path)
+        except VideoExportError as exc:
+            QMessageBox.warning(self, "Could not read PDF", str(exc))
+            return
+
+        slide_count = len(self.store.slides)
+        if page_count != slide_count:
+            QMessageBox.warning(
+                self,
+                "Slide count mismatch",
+                f"The PDF has {page_count} pages, but this session has {slide_count} slides.",
+            )
+            return
+
+        silent_slides = [slide for slide in self.store.slides if not slide.has_audio]
+        if silent_slides:
+            response = QMessageBox.question(
+                self,
+                "Slides without audio",
+                f"{len(silent_slides)} slides do not have recordings. Include them as one-second silent pages?",
+            )
+            if response != QMessageBox.StandardButton.Yes:
+                return
+
+        try:
+            codecs = available_video_codecs()
+        except VideoExportError as exc:
+            QMessageBox.warning(self, "Video codecs unavailable", str(exc))
+            return
+        codec_labels = [codec.label for codec in codecs]
+        selected_label, ok = QInputDialog.getItem(
+            self,
+            "Video Codec",
+            "Encode video as:",
+            codec_labels,
+            0,
+            False,
+        )
+        if not ok:
+            return
+        selected_codec = next(codec for codec in codecs if codec.label == selected_label)
+
+        default_name = f"{safe_file_stem(pdf_path.stem)}_voiceover.mp4"
+        destination_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Slide Video",
+            str(self.store.directory / default_name),
+            "MP4 video (*.mp4)",
+        )
+        if not destination_name:
+            return
+        destination = Path(destination_name)
+        if destination.suffix.lower() != ".mp4":
+            destination = destination.with_suffix(".mp4")
+
+        total_steps = len(self.store.slides) * 2 + 1
+        progress_dialog = QProgressDialog("Preparing slide video...", "Cancel", 0, total_steps, self)
+        progress_dialog.setWindowTitle("Export Slide Video")
+        progress_dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
+        progress_dialog.setMinimumDuration(0)
+        progress_dialog.setValue(0)
+
+        def update_progress(message: str, value: int, maximum: int) -> None:
+            progress_dialog.setMaximum(maximum)
+            progress_dialog.setLabelText(message)
+            progress_dialog.setValue(value)
+            QApplication.processEvents()
+            if progress_dialog.wasCanceled():
+                raise VideoExportError("Video export canceled.")
+
+        try:
+            result = export_pdf_slide_video(
+                pdf_path,
+                destination,
+                self.store.slides,
+                self.store.sample_rate,
+                codec_key=selected_codec.key,
+                progress=update_progress,
+            )
+        except VideoExportError as exc:
+            progress_dialog.close()
+            if str(exc) != "Video export canceled.":
+                QMessageBox.warning(self, "Video export failed", str(exc))
+            self.statusBar().showMessage(
+                "Video export canceled." if str(exc) == "Video export canceled." else "Video export failed."
+            )
+            return
+
+        progress_dialog.close()
+        silent_note = (
+            f" Included {result.silent_slide_count} one-second silent slides."
+            if result.silent_slide_count
+            else ""
+        )
+        QMessageBox.information(
+            self,
+            "Export complete",
+            f"Created {result.output_path}\n"
+            f"{result.slide_count} slides, {format_seconds(result.duration_seconds)} total.\n"
+            f"Encoded with {result.encoder_label}.{silent_note}",
+        )
+        self.statusBar().showMessage(f"Exported {result.output_path}")
 
 
 def default_session_dir() -> Path:
