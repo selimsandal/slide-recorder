@@ -10,11 +10,9 @@
   <img alt="Platforms" src="https://img.shields.io/badge/Desktop-Windows%20%7C%20macOS%20%7C%20Linux-111827?style=flat-square">
 </p>
 
-<!-- Add a screenshot at docs/screenshot.png. A 16:10 or 16:9 desktop capture works well. -->
 <p align="center">
   <img src="docs/screenshot.png" alt="Slide Recorder screenshot" width="920">
 </p>
-<p align="center"><sub>Screenshot placeholder: add <code>docs/screenshot.png</code>.</sub></p>
 
 Slide Recorder is a native desktop app for building voiceovers slide by slide.
 It keeps the microphone stream open after startup, so recording starts from an
